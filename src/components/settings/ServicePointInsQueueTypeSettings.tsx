@@ -197,7 +197,7 @@ const ServicePointInsQueueTypeSettings: React.FC<{ className?: string }> = ({
                     <div className="flex gap-4 items-end mb-4">
                       <div className="flex-1">
                         <label className="text-sm font-medium">
-                          เลือกประเภทคิวตรวจ
+                          เลือกแผนกคิวตรวจ
                         </label>
                         {availableQueueTypes.length === 0 ? (
                           <div className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
@@ -209,7 +209,7 @@ const ServicePointInsQueueTypeSettings: React.FC<{ className?: string }> = ({
                             onValueChange={handleQueueTypeSelect}
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="เลือกประเภทคิวตรวจที่จะเพิ่ม" />
+                              <SelectValue placeholder="เลือกแผนกคิวตรวจที่จะเพิ่ม" />
                             </SelectTrigger>
                             <SelectContent>
                               {availableQueueTypes.map((qt) => (
@@ -242,11 +242,11 @@ const ServicePointInsQueueTypeSettings: React.FC<{ className?: string }> = ({
 
                     <div className="space-y-2">
                       <h4 className="text-sm font-medium">
-                        ประเภทคิวตรวจที่ให้บริการ
+                        แผนกคิวตรวจที่ให้บริการ
                       </h4>
                       {mappings.length === 0 ? (
                         <div className="text-sm text-gray-500 p-2">
-                          ยังไม่มีประเภทคิวตรวจที่ให้บริการ
+                          ยังไม่มีแผนกคิวตรวจที่ให้บริการ
                         </div>
                       ) : (
                         <div className="space-y-2">

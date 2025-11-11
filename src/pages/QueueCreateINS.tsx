@@ -128,7 +128,7 @@ const QueueCreateINS = () => {
 
     // ตรวจสอบประเภทคิวตรวจ (บังคับ)
     if (!formData.queueInsTypeId.trim()) {
-      newErrors.queueInsTypeId = "กรุณาเลือกประเภทคิวตรวจ";
+      newErrors.queueInsTypeId = "กรุณาเลือกแผนกคิวตรวจ";
     }
 
     // ตรวจสอบเลขบัตรประชาชน (บังคับ)
