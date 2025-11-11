@@ -59,7 +59,7 @@ const EnhancedMedicationDispenseDialog: React.FC<
         id: `copied-${med.id}-${Date.now()}-${Math.random()}`, // Unique ID for each copy
         medication: med.medication!,
         dosage: med.dosage,
-        instructions: med.instructions || "",
+        instructions: med.instructions || "",dispensed:med.dispensed?.toString() || ""
       })
     );
 
