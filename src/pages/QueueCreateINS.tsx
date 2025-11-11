@@ -625,7 +625,7 @@ const QueueCreateINS = () => {
                   htmlFor="queueInsType"
                   className="text-sm font-medium text-gray-700 flex items-center gap-2"
                 >
-                  ประเภทคิวตรวจ <span className="text-red-500">*</span>
+                  แผนกคิวตรวจ <span className="text-red-500">*</span>
                 </Label>
                 {loadingQueueTypes ? (
                   <div className="flex h-12 w-full items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
@@ -634,7 +634,7 @@ const QueueCreateINS = () => {
                   </div>
                 ) : queueInsTypes.length === 0 ? (
                   <div className="flex h-12 w-full items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
-                    ไม่มีประเภทคิวตรวจ
+                    ไม่มีแผนกคิวตรวจ
                   </div>
                 ) : (
                   <Select
@@ -654,7 +654,7 @@ const QueueCreateINS = () => {
                           : "border-gray-200 focus:border-blue-500"
                         }`}
                     >
-                      <SelectValue placeholder="เลือกประเภทคิวตรวจ" />
+                      <SelectValue placeholder="เลือกแผนกคิวตรวจ" />
                     </SelectTrigger>
                     <SelectContent>
                       {queueInsTypes.map((type) => (
