@@ -11,6 +11,7 @@ import ServicePointSettings from "./ServicePointSettings";
 import ServicePointQueueTypeSettings from "./ServicePointQueueTypeSettings";
 import { FormatOption } from "./schemas";
 import ServicePointInsSetting from "./ServicePointInsSetting";
+import ServicePointInsQueueTypeSettings from "./ServicePointInsQueueTypeSettings";
 
 // Define the format options
 const formatOptions: FormatOption[] = [
@@ -44,6 +45,7 @@ const SettingsForm: React.FC = () => {
           <ServicePointSettings />
           <ServicePointQueueTypeSettings />
           <ServicePointInsSetting />
+          <ServicePointInsQueueTypeSettings />
         </div>
       </TabsContent>
 

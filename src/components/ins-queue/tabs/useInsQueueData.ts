@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { QueueIns, ServicePointIns } from "@/integrations/supabase/schema";
 import { toast } from "sonner";
 import { useServicePointIns } from "@/hooks/useServicePointIns";
+import { useServicePointInsQueueTypes } from "@/hooks/useServicePointInsQueueTypes";
 import logger from "@/utils/logger";
 import { useSmsNotifications } from "@/hooks";
 import { getTodayDate } from "@/utils/dateUtils";
@@ -26,6 +27,8 @@ export const useInsQueueData = ({
 }: UseInsQueueDataProps) => {
   const [queues, setQueues] = useState<QueueIns[]>([]);
   const [loading, setLoading] = useState(false);
+  const [queueInsTypes, setQueueInsTypes] = useState<any[]>([]);
+  const [servicePointQueueTypeMappings, setServicePointQueueTypeMappings] = useState<any[]>([]);
   const { servicePoints } = useServicePointIns();
   const { sendSmsToNextQueueIns } = useSmsNotifications();
   // Fetch queues
@@ -56,14 +59,50 @@ export const useInsQueueData = ({
     [refreshTrigger]
   );
 
+  // Fetch queue type mappings for the current service point
+  const fetchQueueTypeMappings = useCallback(async () => {
+    if (!servicePointId) return;
+
+    try {
+      // Fetch all queue ins types
+      const { data: types, error: typesError } = await supabase
+        .from("queue_ins_types")
+        .select("*");
+
+      if (typesError) {
+        console.error("Error fetching queue ins types:", typesError);
+        return;
+      }
+
+      setQueueInsTypes(types || []);
+
+      // Fetch service point queue type mappings for this service point
+      const { data: mappings, error: mappingsError } = await supabase
+        .from("service_point_queue_ins_types")
+        .select("*")
+        .eq("service_point_ins_id", servicePointId);
+
+      if (mappingsError) {
+        console.error("Error fetching service point queue type mappings:", mappingsError);
+        return;
+      }
+
+      setServicePointQueueTypeMappings(mappings || []);
+      console.log("Fetched queue type mappings for service point:", mappings);
+    } catch (error) {
+      console.error("Error in fetchQueueTypeMappings:", error);
+    }
+  }, [servicePointId]);
+
   // Fetch queues on mount and when refreshTrigger changes
   useEffect(() => {
     fetchQueues(true);
-  }, [fetchQueues, refreshTrigger]);
+    fetchQueueTypeMappings();
+  }, [fetchQueues, refreshTrigger, fetchQueueTypeMappings]);
 
   // Filter queues for the selected service point
   const servicePointQueues = useMemo(() => {
-    // if (!servicePointId) return [];
+    if (!servicePointId) return [];
 
     return queues.filter((queue) => {
       // Check if queue has been transferred
@@ -77,8 +116,28 @@ export const useInsQueueData = ({
           return false; // Don't show at original service point
         }
       } else {
-        // For non-transferred queues, check original service point
-        // const isServicePointMatch = queue.service_point_id === servicePointId;
+        // For non-transferred queues, show based on queue type mapping
+        // Get the queue type code from the queue
+        const queueTypeCode = queue.type;
+        
+        // Find the queue type ID that matches this code
+        const matchingQueueType = queueInsTypes.find(qt => qt.code === queueTypeCode);
+        if (!matchingQueueType) {
+          // If no matching queue type found, fall back to service point ID match
+          const isServicePointMatch = queue.service_point_id === servicePointId;
+          if (!isServicePointMatch) {
+            return false;
+          }
+        } else {
+          // Check if current service point has this queue type mapped
+          const hasQueueType = servicePointQueueTypeMappings.some(
+            mapping => mapping.queue_ins_type_id === matchingQueueType.id
+          );
+          
+          if (!hasQueueType) {
+            return false; // Service point doesn't have this queue type
+          }
+        }
       }
 
       // Include all relevant statuses
@@ -102,7 +161,7 @@ export const useInsQueueData = ({
 
       return isRelevantStatus && isRecentQueue;
     });
-  }, [queues, servicePointId]);
+  }, [queues, servicePointId, queueInsTypes, servicePointQueueTypeMappings]);
 
   // Get selected service point
   const selectedServicePoint = servicePointId

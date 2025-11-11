@@ -13,7 +13,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { getQueueTypeLabel, getAllQueueTypes } from "@/utils/queueTypeUtils";
+import { getQueueTypeLabel, getPharmacyQueueTypes, getInsQueueTypes } from "@/utils/queueTypeUtils";
 
 interface QueueCompositionChartProps {
   waitingQueues: Queue[];
@@ -27,40 +27,8 @@ const chartConfig = {
   },
 };
 
-const QueueCompositionChart: React.FC<QueueCompositionChartProps> = ({
-  waitingQueues,
-  waitingInsQueues = [],
-}) => {
-  const [hasData, SetHasData] = React.useState(false);
-  const [data, setData] = React.useState([]);
-
-  React.useEffect(() => {
-    const getType = async () => {
-      const data = (await getAllQueueTypes()).map((queueType) => {
-        // รวมจำนวนคิวจากทั้ง Pharmacy Queue และ INS Queue
-        const pharmacyCount = waitingQueues.filter(
-          (q) => q.type === queueType.code
-        ).length;
-        const insCount = waitingInsQueues.filter(
-          (q) => q.type === queueType.code
-        ).length;
-        const totalCount = pharmacyCount + insCount;
-        
-        return {
-          type: queueType.name,
-          count: totalCount,
-        };
-      });
-      setData(data);
-      const hasData = data.some((item) => item.count > 0);
-      SetHasData(hasData);
-    };
-    getType();
-  }, [waitingQueues, waitingInsQueues]);
-
-  // Check if all counts are zero
-
-  if (!hasData) {
+const ChartComponent: React.FC<{ data: any[] }> = ({ data }) => {
+  if (data.length === 0 || !data.some((item) => item.count > 0)) {
     return (
       <div className="h-[300px] flex items-center justify-center text-muted-foreground">
         ไม่มีคิวรอในขณะนี้
@@ -108,6 +76,61 @@ const QueueCompositionChart: React.FC<QueueCompositionChartProps> = ({
         </BarChart>
       </ResponsiveContainer>
     </ChartContainer>
+  );
+};
+
+const QueueCompositionChart: React.FC<QueueCompositionChartProps> = ({
+  waitingQueues,
+  waitingInsQueues = [],
+}) => {
+  const [pharmacyData, setPharmacyData] = React.useState([]);
+  const [insData, setInsData] = React.useState([]);
+
+  React.useEffect(() => {
+    const getType = async () => {
+      // Pharmacy Queue Data
+      const pharmacyQueueTypes = await getPharmacyQueueTypes();
+      const pharmacyChartData = pharmacyQueueTypes.map((queueType) => {
+        const count = waitingQueues.filter(
+          (q) => q.type === queueType.code
+        ).length;
+        return {
+          type: queueType.name,
+          count: count,
+        };
+      });
+      setPharmacyData(pharmacyChartData);
+
+      // INS Queue Data
+      const insQueueTypes = await getInsQueueTypes();
+      const insChartData = insQueueTypes.map((queueType) => {
+        const count = waitingInsQueues.filter(
+          (q) => q.type === queueType.code
+        ).length;
+        return {
+          type: queueType.name,
+          count: count,
+        };
+      });
+      setInsData(insChartData);
+    };
+    getType();
+  }, [waitingQueues, waitingInsQueues]);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Pharmacy Queue Chart */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-foreground">คิวรับยา</h3>
+        <ChartComponent data={pharmacyData} />
+      </div>
+
+      {/* INS Queue Chart */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-foreground">คิวตรวจ</h3>
+        <ChartComponent data={insData} />
+      </div>
+    </div>
   );
 };
 

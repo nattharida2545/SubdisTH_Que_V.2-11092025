@@ -88,6 +88,17 @@ export const useAppointmentActions = (
 
   const deleteAppointment = async (id: string) => {
     try {
+      // First, delete all queues that reference this appointment
+      const { error: queuesError } = await supabase
+        .from('queues')
+        .delete()
+        .eq('appointment_id', id);
+
+      if (queuesError) {
+        throw queuesError;
+      }
+
+      // Then delete the appointment
       const { error } = await supabase
         .from('appointments')
         .delete()

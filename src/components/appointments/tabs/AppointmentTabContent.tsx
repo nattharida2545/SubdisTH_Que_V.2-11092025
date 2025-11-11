@@ -11,6 +11,7 @@ interface AppointmentTabContentProps {
   emptyMessage: string;
   iconBgColor: string;
   iconColor: string;
+  onAppointmentDeleted?: () => void;
 }
 
 const AppointmentTabContent: React.FC<AppointmentTabContentProps> = ({
@@ -20,6 +21,7 @@ const AppointmentTabContent: React.FC<AppointmentTabContentProps> = ({
   emptyMessage,
   iconBgColor,
   iconColor,
+  onAppointmentDeleted,
 }) => {
   return (
     <TabsContent value={value} className="animate-fade-in">
@@ -29,6 +31,7 @@ const AppointmentTabContent: React.FC<AppointmentTabContentProps> = ({
         emptyMessage={emptyMessage}
         iconBgColor={iconBgColor}
         iconColor={iconColor}
+        onAppointmentDeleted={onAppointmentDeleted}
       />
     </TabsContent>
   );

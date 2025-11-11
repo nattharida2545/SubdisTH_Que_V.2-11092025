@@ -131,14 +131,14 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ form }) => {
             name="hospital_website"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>เว็บไซต์โรงพยาบาล</FormLabel>
+                <FormLabel className='text-black'>เว็บไซต์โรงพยาบาล</FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Globe className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input className="pl-10" {...field} />
                   </div>
                 </FormControl>
-                <FormMessage />
+                {/* <FormMessage /> */}
               </FormItem>
             )}
           />

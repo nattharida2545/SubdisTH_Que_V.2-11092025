@@ -16,6 +16,7 @@ interface AppointmentsListProps {
   emptyMessage: string;
   iconBgColor: string;
   iconColor: string;
+  onAppointmentDeleted?: () => void;
 }
 
 const AppointmentsList: React.FC<AppointmentsListProps> = ({
@@ -23,7 +24,8 @@ const AppointmentsList: React.FC<AppointmentsListProps> = ({
   getPatientName,
   emptyMessage,
   iconBgColor,
-  iconColor
+  iconColor,
+  onAppointmentDeleted
 }) => {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -52,6 +54,11 @@ const AppointmentsList: React.FC<AppointmentsListProps> = ({
         toast("การนัดถูกลบแล้ว", {
           description: "การนัดหมายถูกลบออกจากระบบเรียบร้อยแล้ว",
         });
+        
+        // Refetch appointments after successful deletion
+        if (onAppointmentDeleted) {
+          onAppointmentDeleted();
+        }
       } catch (error) {
         console.error('Failed to delete appointment:', error);
         toast("เกิดข้อผิดพลาด", {

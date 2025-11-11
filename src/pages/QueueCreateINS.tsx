@@ -6,6 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Loader2,
   Phone,
   CreditCard,
@@ -26,6 +33,12 @@ import HospitalFooter from "@/components/queue/HospitalFooter";
 import { formatQueueInsNumber } from "@/utils/queueInsFormatters";
 import { getTodayDate } from "@/utils/dateUtils";
 
+interface QueueInsType {
+  id: string;
+  name: string;
+  code: string;
+}
+
 const QueueCreateINS = () => {
   const [formData, setFormData] = useState({
     phoneNumber: "",
@@ -33,6 +46,8 @@ const QueueCreateINS = () => {
     houseNumber: "",
     moo: "",
     full_name: "",
+    queueInsTypeId: "",
+    type: "CHECK",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -42,6 +57,8 @@ const QueueCreateINS = () => {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [waitTiemQueueNext, setWaitTiemQueueNext] = useState<number>(0);
   const [isReadingCard, setIsReadingCard] = useState(false);
+  const [queueInsTypes, setQueueInsTypes] = useState<QueueInsType[]>([]);
+  const [loadingQueueTypes, setLoadingQueueTypes] = useState(true);
 
   // Update the current time every second
   useEffect(() => {
@@ -60,6 +77,41 @@ const QueueCreateINS = () => {
     }
   }, []);
 
+  // Fetch INS queue types on component mount
+  useEffect(() => {
+    const fetchQueueInsTypes = async () => {
+      try {
+        setLoadingQueueTypes(true);
+        const { data, error } = await supabase
+          .from("queue_ins_types")
+          .select("id, name, code")
+          .eq("enabled", true)
+          .order("code", { ascending: true });
+
+        if (error) {
+          throw error;
+        }
+
+        setQueueInsTypes(data || []);
+        // Auto-select first queue type if available
+        if (data && data.length > 0) {
+          setFormData((prev) => ({
+            ...prev,
+            queueInsTypeId: data[0].id,
+            type: data[0].code,
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching INS queue types:", error);
+        toast.error("ไม่สามารถดึงข้อมูลประเภทคิวตรวจได้");
+      } finally {
+        setLoadingQueueTypes(false);
+      }
+    };
+
+    fetchQueueInsTypes();
+  }, []);
+
   // Auto-read Thai ID card every 5 seconds until idCard is filled
   useEffect(() => {
     if (formData.idCard) return;
@@ -73,6 +125,11 @@ const QueueCreateINS = () => {
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
+
+    // ตรวจสอบประเภทคิวตรวจ (บังคับ)
+    if (!formData.queueInsTypeId.trim()) {
+      newErrors.queueInsTypeId = "กรุณาเลือกประเภทคิวตรวจ";
+    }
 
     // ตรวจสอบเลขบัตรประชาชน (บังคับ)
     if (!formData.idCard.trim()) {
@@ -186,16 +243,16 @@ const QueueCreateINS = () => {
       }
       // Parse and fill form data
       const cardData = data;
-      console.log("cardDAta:",cardData)
+      console.log("cardDAta:", cardData)
       // Build address string
       let addressParts = [];
       if (cardData.HomeNo) addressParts.push(cardData.HomeNo);
       if (cardData.Soi) addressParts.push(`ซอย ${cardData.Soi}`);
       if (cardData.Trok) addressParts.push(`ตรอก ${cardData.Trok}`);
       if (cardData.Road) addressParts.push(`ถนน ${cardData.Road}`);
-      
+
       const houseNumber = addressParts.join(" ");
-      
+
       // Update form data
       setFormData({
         idCard: formatIdCard(cardData.CitizenNo || ""),
@@ -203,6 +260,8 @@ const QueueCreateINS = () => {
         houseNumber: houseNumber,
         moo: (cardData.Moo).replace("หมู่ที่ ", "") || "",
         phoneNumber: formData.phoneNumber, // Keep existing phone number
+        queueInsTypeId: formData.queueInsTypeId, // Keep existing queue type
+        type: formData.type,
       });
 
       // Clear any existing errors
@@ -211,7 +270,7 @@ const QueueCreateINS = () => {
       toast.success("อ่านข้อมูลจากบัตรประชาชนสำเร็จ");
     } catch (error: any) {
       console.error("Error reading Thai ID card:", error);
-      
+
       // Handle axios errors
       if (axios.isAxiosError(error)) {
         if (error.code === 'ECONNABORTED') {
@@ -277,6 +336,8 @@ const QueueCreateINS = () => {
     }
   }
 
+  console.log("formData", formData);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -308,7 +369,21 @@ const QueueCreateINS = () => {
         throw new Error("No service points found");
       }
 
-      const servicePointId = servicePoints[0].id;
+      let servicePointId = servicePoints[0].id;
+      let type = "CHECK";
+
+      // Find service point that has the selected queue type
+      const { data: servicePointWithQueueType } = await supabase
+        .from("service_point_queue_ins_types")
+        .select("service_point_ins_id, queue_ins_types(code)")
+        .eq("queue_ins_type_id", formData.queueInsTypeId)
+        .limit(1);
+
+      if (servicePointWithQueueType && servicePointWithQueueType.length > 0) {
+        servicePointId = servicePointWithQueueType[0].service_point_ins_id;
+        const queueType = servicePointWithQueueType[0].queue_ins_types as any;
+        type = queueType?.code || "CHECK";
+      }
 
       // Check if patient exists with the given ID card
       const { data: existingPatients, error: patientError } = await supabase
@@ -339,9 +414,8 @@ const QueueCreateINS = () => {
           patient_id: generatedPatientId,
           phone: phoneNumberClean || "", // Phone is required in the schema
           address: formData.houseNumber
-            ? `${
-                formData.houseNumber ? `บ้านเลขที่ ${formData.houseNumber}` : ""
-              }${formData.moo ? ` หมู่ ${formData.moo}` : ""}`
+            ? `${formData.houseNumber ? `บ้านเลขที่ ${formData.houseNumber}` : ""
+            }${formData.moo ? ` หมู่ ${formData.moo}` : ""}`
             : null,
           ID_card: idCardClean,
         };
@@ -371,9 +445,8 @@ const QueueCreateINS = () => {
             name: formData.full_name,
             phone: phoneNumberClean || "", // Phone is required in the schema
             address: formData.houseNumber
-              ? `${formData.houseNumber}${
-                  formData.moo ? ` หมู่ ${formData.moo}` : ""
-                }`
+              ? `${formData.houseNumber}${formData.moo ? ` หมู่ ${formData.moo}` : ""
+              }`
               : null,
           })
           .eq("id", patientId);
@@ -390,7 +463,7 @@ const QueueCreateINS = () => {
         full_name?: string | null;
       } = {
         number: queueNum,
-        type: "CHECK",
+        type: type,
         status: "WAITING",
         queue_date: today,
         phone_number: phoneNumberClean,
@@ -398,7 +471,7 @@ const QueueCreateINS = () => {
         full_name: formData.full_name,
         house_number: formData.houseNumber || null,
         moo: formData.moo || null,
-        service_point_id: null,
+        service_point_id: servicePointId,
       };
 
       const { error } = await supabase.from("queues_ins").insert([queueData]);
@@ -427,6 +500,8 @@ const QueueCreateINS = () => {
       houseNumber: "",
       moo: "",
       full_name: "",
+      queueInsTypeId: queueInsTypes.length > 0 ? queueInsTypes[0].id : "",
+      type: "CHECK",
     });
     setErrors({});
   };
@@ -443,7 +518,7 @@ const QueueCreateINS = () => {
         phoneNumber: formData.phoneNumber.replace(/\D/g, "") || "",
         purpose: "ตรวจทั่วไป",
         estimatedWaitTime: 15,
-        queueType: "CHECK",
+        queueType: formData.type,
         waitTiemQueueNext: waitTime,
       });
     } catch (error) {
@@ -477,7 +552,7 @@ const QueueCreateINS = () => {
 
               <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl p-6 mb-6">
                 <div className="text-6xl font-bold mb-2">
-                  {formatQueueInsNumber("CHECK", queueNumber)}
+                  {formatQueueInsNumber(formData.type, queueNumber)}
                 </div>
                 <div className="text-lg opacity-90">หมายเลขคิว</div>
               </div>
@@ -544,27 +619,58 @@ const QueueCreateINS = () => {
 
           <CardContent className="px-6 pb-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* ปุ่มอ่านบัตรประชาชน */}
-              {/* <div className="space-y-2">
-                <Button
-                  type="button"
-                  onClick={readThaiIDCard}
-                  disabled={isReadingCard}
-                  className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50"
+              {/* ประเภทคิวตรวจ */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="queueInsType"
+                  className="text-sm font-medium text-gray-700 flex items-center gap-2"
                 >
-                  {isReadingCard ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                      กำลังอ่านบัตร...
-                    </>
-                  ) : (
-                    <>
-                      <ScanLine className="w-5 h-5 mr-2" />
-                      อ่านบัตรประชาชน
-                    </>
-                  )}
-                </Button>
-              </div> */}
+                  ประเภทคิวตรวจ <span className="text-red-500">*</span>
+                </Label>
+                {loadingQueueTypes ? (
+                  <div className="flex h-12 w-full items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    กำลังโหลด...
+                  </div>
+                ) : queueInsTypes.length === 0 ? (
+                  <div className="flex h-12 w-full items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                    ไม่มีประเภทคิวตรวจ
+                  </div>
+                ) : (
+                  <Select
+                    value={formData.queueInsTypeId}
+                    onValueChange={(value) => {
+                      const selectedType = queueInsTypes.find((t) => t.id === value);
+                      setFormData((prev) => ({
+                        ...prev,
+                        queueInsTypeId: value,
+                        type: selectedType?.code || "CHECK",
+                      }));
+                    }}
+                  >
+                    <SelectTrigger
+                      className={`h-12 rounded-xl border-2 transition-all duration-200 ${errors.queueInsTypeId
+                          ? "border-red-300 focus:border-red-500"
+                          : "border-gray-200 focus:border-blue-500"
+                        }`}
+                    >
+                      <SelectValue placeholder="เลือกประเภทคิวตรวจ" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {queueInsTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {errors.queueInsTypeId && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.queueInsTypeId}
+                  </p>
+                )}
+              </div>
 
               {/* เลขบัตรประชาชน */}
               <div className="space-y-2">
@@ -581,11 +687,10 @@ const QueueCreateINS = () => {
                   placeholder="X-XXXX-XXXXX-XX-X"
                   value={formData.idCard}
                   onChange={(e) => handleInputChange("idCard", e.target.value)}
-                  className={`h-12 rounded-xl border-2 transition-all duration-200 ${
-                    errors.idCard
+                  className={`h-12 rounded-xl border-2 transition-all duration-200 ${errors.idCard
                       ? "border-red-300 focus:border-red-500"
                       : "border-gray-200 focus:border-blue-500"
-                  }`}
+                    }`}
                   maxLength={17}
                   required
                 />
@@ -611,11 +716,10 @@ const QueueCreateINS = () => {
                   onChange={(e) =>
                     handleInputChange("full_name", e.target.value)
                   }
-                  className={`h-12 rounded-xl border-2 transition-all duration-200 ${
-                    errors.full_name
+                  className={`h-12 rounded-xl border-2 transition-all duration-200 ${errors.full_name
                       ? "border-red-300 focus:border-red-500"
                       : "border-gray-200 focus:border-blue-500"
-                  }`}
+                    }`}
                   required
                 />
                 {errors.full_name && (
@@ -641,11 +745,10 @@ const QueueCreateINS = () => {
                   onChange={(e) =>
                     handleInputChange("houseNumber", e.target.value)
                   }
-                  className={`h-12 rounded-xl border-2 transition-all duration-200 ${
-                    errors.houseNumber
+                  className={`h-12 rounded-xl border-2 transition-all duration-200 ${errors.houseNumber
                       ? "border-red-300 focus:border-red-500"
                       : "border-gray-200 focus:border-blue-500"
-                  }`}
+                    }`}
                 />
                 {errors.houseNumber && (
                   <p className="text-red-500 text-sm mt-1">
@@ -668,11 +771,10 @@ const QueueCreateINS = () => {
                   placeholder="กรอกหมู่"
                   value={formData.moo}
                   onChange={(e) => handleInputChange("moo", e.target.value)}
-                  className={`h-12 rounded-xl border-2 transition-all duration-200 ${
-                    errors.moo
+                  className={`h-12 rounded-xl border-2 transition-all duration-200 ${errors.moo
                       ? "border-red-300 focus:border-red-500"
                       : "border-gray-200 focus:border-blue-500"
-                  }`}
+                    }`}
                 />
                 {errors.moo && (
                   <p className="text-red-500 text-sm mt-1">{errors.moo}</p>
@@ -696,11 +798,10 @@ const QueueCreateINS = () => {
                   onChange={(e) =>
                     handleInputChange("phoneNumber", e.target.value)
                   }
-                  className={`h-12 rounded-xl border-2 transition-all duration-200 ${
-                    errors.phoneNumber
+                  className={`h-12 rounded-xl border-2 transition-all duration-200 ${errors.phoneNumber
                       ? "border-red-300 focus:border-red-500"
                       : "border-gray-200 focus:border-blue-500"
-                  }`}
+                    }`}
                   maxLength={12}
                 />
                 {errors.phoneNumber && (

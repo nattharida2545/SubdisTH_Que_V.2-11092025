@@ -161,6 +161,7 @@ export const usePatientPortalState = () => {
           toast.info(
             "ไม่พบข้อมูลผู้ป่วยที่เชื่อมโยงกับเลขบัตรประจำตัวประชาชนนี้"
           );
+          setIsAuthenticated(false);
         }
       } else {
         console.log("[DEBUG] No LINE token or phone number found");

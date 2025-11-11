@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Patient } from "@/integrations/supabase/schema";
 import { formatThaiDate } from "@/utils/dateUtils";
-import { Phone, MapPin, Calendar, User, Loader2, IdCard, FileText, RefreshCw, ChevronDown, ChevronUp, Pill, UserCircle2, Navigation, MessageCircle, CalendarCheck } from "lucide-react";
+import { Phone, MapPin, Calendar, User, Loader2, IdCard, FileText, RefreshCw, ChevronDown, ChevronUp, Pill, UserCircle2, Navigation, MessageCircle, CalendarCheck, X, Image as ImageIcon } from "lucide-react";
 import PatientMedicationHistory from "./PatientMedicationHistory";
 import { usePatientMedications } from "@/hooks/usePatientMedications";
 import { useMedicationsContext } from "@/components/medications/context/MedicationsContext";
@@ -39,6 +39,14 @@ interface PatientCheck {
   created_at: string;
 }
 
+interface CheckImage {
+  id: string;
+  patient_check_id: string;
+  image_path: string;
+  file_name: string;
+  order_index: number;
+}
+
 const PatientInfoDialog: React.FC<PatientInfoDialogProps> = ({
   open,
   onOpenChange,
@@ -53,6 +61,9 @@ const PatientInfoDialog: React.FC<PatientInfoDialogProps> = ({
   const [loadingChecks, setLoadingChecks] = useState(false);
   const [expandedCheckId, setExpandedCheckId] = useState<string | null>(null);
   const [checkMedications, setCheckMedications] = useState<Record<string, any[]>>({});
+  const [checkImages, setCheckImages] = useState<Record<string, CheckImage[]>>({});
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
 
   const {
     medications: patientMedications,
@@ -123,6 +134,40 @@ const PatientInfoDialog: React.FC<PatientInfoDialogProps> = ({
     }
   };
 
+  // Fetch images for a specific check
+  const fetchCheckImages = async (checkId: string) => {
+    if (checkImages[checkId] !== undefined) {
+      // Already fetched
+      return;
+    }
+
+    try {
+      const { data, error } = await (supabase as any)
+        .from('patient_check_images')
+        .select('*')
+        .eq('patient_check_id', checkId)
+        .order('order_index', { ascending: true });
+
+      if (!error && data) {
+        // Convert image_path to public URL
+        const imagesWithUrls = data.map((img: any) => {
+          const { data: urlData } = supabase.storage
+            .from('patient_check_images')
+            .getPublicUrl(img.image_path);
+          
+          return {
+            ...img,
+            image_path: urlData.publicUrl
+          };
+        });
+        
+        setCheckImages(prev => ({ ...prev, [checkId]: imagesWithUrls as CheckImage[] }));
+      }
+    } catch (error) {
+      console.error('Error fetching check images:', error);
+    }
+  };
+
   // Get medication count for a check (from already loaded data)
   const getMedicationCount = (checkId: string) => {
     return checkMedications[checkId]?.length || 0;
@@ -135,6 +180,9 @@ const PatientInfoDialog: React.FC<PatientInfoDialogProps> = ({
       // Reset expanded state when dialog closes
       setExpandedCheckId(null);
       setCheckMedications({});
+      setCheckImages({});
+      setImageViewerOpen(false);
+      setSelectedImage(null);
     }
   }, [open, patient?.id]);
 
@@ -171,119 +219,119 @@ const PatientInfoDialog: React.FC<PatientInfoDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            ข้อมูลผู้ป่วย {queueNumber && `- คิว ${queueNumber}`}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              ข้อมูลผู้ป่วย {queueNumber && `- คิว ${queueNumber}`}
+            </DialogTitle>
+          </DialogHeader>
 
-        <Tabs defaultValue="info" className="space-y-4">
-          <TabsList
-            className={`grid w-full ${
-              mode === "view" 
-                ? (showPharmacyTab ? "grid-cols-3" : "grid-cols-2")
-                : (showPharmacyTab ? "grid-cols-4" : "grid-cols-3")
-            }`}
-          >
-            <TabsTrigger value="info">ข้อมูลส่วนตัว</TabsTrigger>
-            <TabsTrigger value="history">ประวัติการรับยา</TabsTrigger>
-            {mode !== "view" && (
-              <TabsTrigger value="checks">ประวัติการตรวจ</TabsTrigger>
-            )}
-            {showPharmacyTab && (
-              <TabsTrigger value="dispense">
-                {mode === "view" ? "ยาที่ต้องจ่าย" : "จ่ายยา"}
-              </TabsTrigger>
-            )}
-          </TabsList>
+          <Tabs defaultValue="info" className="space-y-4">
+            <TabsList
+              className={`grid w-full ${
+                mode === "view" 
+                  ? (showPharmacyTab ? "grid-cols-3" : "grid-cols-2")
+                  : (showPharmacyTab ? "grid-cols-4" : "grid-cols-3")
+              }`}
+            >
+              <TabsTrigger value="info">ข้อมูลส่วนตัว</TabsTrigger>
+              <TabsTrigger value="history">ประวัติการรับยา</TabsTrigger>
+              {mode !== "view" && (
+                <TabsTrigger value="checks">ประวัติการตรวจ</TabsTrigger>
+              )}
+              {showPharmacyTab && (
+                <TabsTrigger value="dispense">
+                  {mode === "view" ? "ยาที่ต้องจ่าย" : "บันทึกการรักษา/จ่ายยา"}
+                </TabsTrigger>
+              )}
+            </TabsList>
 
             <TabsContent value="info">
-            <Card>
-              <CardHeader>
-                <CardTitle>ข้อมูลส่วนตัว</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-500" />
-                      <div>
-                        <div className="text-sm text-gray-500">
-                          ชื่อ-นามสกุล
-                        </div>
-                        <div className="font-medium">{patient.name}</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">
-                        รหัสผู้ป่วย: {patient.patient_id}
-                      </Badge>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <IdCard className="h-4 w-4 text-gray-500" />
-
-                      <div>
-                        <div className="text-sm text-gray-500">
-                          เลขบัตรประชาชน
-                        </div>
-                        <div className="font-medium">
-                          {patient.ID_card || "-"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-gray-500" />
-                      <div>
-                        <div className="text-sm text-gray-500">
-                          เบอร์โทรศัพท์
-                        </div>
-                        <div className="font-medium">
-                          {patient.phone || "-"}
-                        </div>
-                      </div>
-                    </div>
-
-                    {patient.birth_date && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>ข้อมูลส่วนตัว</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-500" />
-                        <div>
-                          <div className="text-sm text-gray-500">วันเกิด</div>
-                          <div className="font-medium">
-                            {formatThaiDate(patient.birth_date)}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {patient.gender && (
-                      <div className="flex items-center gap-2">
-                        <UserCircle2 className="h-4 w-4 text-gray-500" />
-                        <div>
-                          <div className="text-sm text-gray-500">เพศ</div>
-                          <div className="font-medium">{patient.gender}</div>
-                        </div>
-                      </div>
-                    )}
-
-                    {patient.distance_from_hospital && (
-                      <div className="flex items-center gap-2">
-                        <Navigation className="h-4 w-4 text-gray-500" />
+                        <User className="h-4 w-4 text-gray-500" />
                         <div>
                           <div className="text-sm text-gray-500">
-                            ระยะทางจากโรงพยาบาล
+                            ชื่อ-นามสกุล
+                          </div>
+                          <div className="font-medium">{patient.name}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">
+                          รหัสผู้ป่วย: {patient.patient_id}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <IdCard className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <div className="text-sm text-gray-500">
+                            เลขบัตรประชาชน
                           </div>
                           <div className="font-medium">
-                            {patient.distance_from_hospital} กิโลเมตร
+                            {patient.ID_card || "-"}
                           </div>
                         </div>
                       </div>
-                    )}
+
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <div className="text-sm text-gray-500">
+                            เบอร์โทรศัพท์
+                          </div>
+                          <div className="font-medium">
+                            {patient.phone || "-"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {patient.birth_date && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-gray-500" />
+                          <div>
+                            <div className="text-sm text-gray-500">วันเกิด</div>
+                            <div className="font-medium">
+                              {formatThaiDate(patient.birth_date)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {patient.gender && (
+                        <div className="flex items-center gap-2">
+                          <UserCircle2 className="h-4 w-4 text-gray-500" />
+                          <div>
+                            <div className="text-sm text-gray-500">เพศ</div>
+                            <div className="font-medium">{patient.gender}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {patient.distance_from_hospital && (
+                        <div className="flex items-center gap-2">
+                          <Navigation className="h-4 w-4 text-gray-500" />
+                          <div>
+                            <div className="text-sm text-gray-500">
+                              ระยะทางจากโรงพยาบาล
+                            </div>
+                            <div className="font-medium">
+                              {patient.distance_from_hospital} กิโลเมตร
+                            </div>
+                          </div>
+                        </div>
+                      )}
                   </div>
 
                   <div className="space-y-3">
@@ -385,12 +433,57 @@ const PatientInfoDialog: React.FC<PatientInfoDialogProps> = ({
                           <p className="text-sm whitespace-pre-wrap text-gray-700 mb-3">
                             {check.check_note || 'ไม่มีบันทึก'}
                           </p>
+
+                          {/* Images section */}
+                          {checkImages[check.id] && checkImages[check.id].length > 0 && (
+                            <div className="mb-4 border-t pt-3">
+                              <div className="flex items-center gap-2 mb-3">
+                                <ImageIcon className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm font-semibold text-blue-900">
+                                  รูปภาพแนบ ({checkImages[check.id].length})
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                {checkImages[check.id].map((image) => (
+                                  <button
+                                    key={image.id}
+                                    onClick={() => {
+                                      setSelectedImage(image.image_path);
+                                      setImageViewerOpen(true);
+                                    }}
+                                    className="relative group overflow-hidden rounded-lg border-2 border-gray-200 hover:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md aspect-square"
+                                  >
+                                    <img
+                                      src={image.image_path}
+                                      alt={image.file_name}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                      onError={(e) => {
+                                        console.error('Error loading image:', image.image_path);
+                                        (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23f3f4f6" width="100" height="100"/%3E%3Ctext x="50" y="50" font-size="12" fill="%239ca3af" text-anchor="middle" dy=".3em"%3ENo image%3C/text%3E%3C/svg%3E';
+                                      }}
+                                    />
+                                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                                      <div className="flex flex-col items-center gap-1">
+                                        <ImageIcon className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                                        <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                          ดูใหญ่
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           
                           {/* Toggle button for medications */}
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => fetchCheckMedications(check.id)}
+                            onClick={() => {
+                              fetchCheckMedications(check.id);
+                              fetchCheckImages(check.id);
+                            }}
                             className="w-full justify-between text-blue-700 hover:text-blue-800 hover:bg-blue-100"
                           >
                             <span className="flex items-center gap-2">
@@ -500,6 +593,33 @@ const PatientInfoDialog: React.FC<PatientInfoDialogProps> = ({
         </Tabs>
       </DialogContent>
     </Dialog>
+
+      {/* Image Viewer Modal */}
+      <Dialog open={imageViewerOpen} onOpenChange={setImageViewerOpen}>
+        <DialogContent className="max-w-2xl w-full">
+          <DialogHeader className="flex flex-row items-center justify-between">
+            <DialogTitle>ดูรูปภาพ</DialogTitle>
+            {/* <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setImageViewerOpen(false)}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button> */}
+          </DialogHeader>
+          {selectedImage && (
+            <div className="flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden max-h-[600px]">
+              <img
+                src={selectedImage}
+                alt="Check image"
+                className="max-w-full max-h-[600px] object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

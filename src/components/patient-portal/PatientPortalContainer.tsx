@@ -68,6 +68,7 @@ const PatientPortalContainer: React.FC = () => {
     return <PatientPortalLoading />;
   }
 
+  console.log("isAuthenticated", isAuthenticated);
   if (!isAuthenticated) {
     console.log(
       "[PatientPortalContainer] Not authenticated, showing auth page"

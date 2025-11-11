@@ -30,6 +30,7 @@ interface QueueTypeDialogProps {
   queueType?: QueueType | null;
   formatOptions: FormatOption[];
   onSave: (queueType: QueueType) => void;
+  isInspectionQueue?: boolean;
 }
 
 const QueueTypeDialog: React.FC<QueueTypeDialogProps> = ({
@@ -38,6 +39,7 @@ const QueueTypeDialog: React.FC<QueueTypeDialogProps> = ({
   queueType,
   formatOptions,
   onSave,
+  isInspectionQueue = false,
 }) => {
   const [formData, setFormData] = useState<QueueType>({
     id: '',
@@ -62,14 +64,14 @@ const QueueTypeDialog: React.FC<QueueTypeDialogProps> = ({
         code: '',
         name: '',
         prefix: '',
-        purpose: '',
+        purpose: isInspectionQueue ? 'INS' : '',
         format: '0',
         enabled: true,
         algorithm: QueueAlgorithmType.FIFO,
         priority: 5
       });
     }
-  }, [queueType, open]);
+  }, [queueType, open, isInspectionQueue]);
 
   const handleSave = () => {
     if (!formData.code || !formData.name || !formData.prefix) {
@@ -130,15 +132,17 @@ const QueueTypeDialog: React.FC<QueueTypeDialogProps> = ({
             />
           </div>
           
-          <div className="grid gap-2">
-            <Label htmlFor="purpose">วัตถุประสงค์</Label>
-            <Input
-              id="purpose"
-              value={formData.purpose || ''}
-              onChange={(e) => handleFieldChange('purpose', e.target.value)}
-              placeholder="เช่น สำหรับผู้ป่วยทั่วไป"
-            />
-          </div>
+          {!isInspectionQueue && (
+            <div className="grid gap-2">
+              <Label htmlFor="purpose">วัตถุประสงค์</Label>
+              <Input
+                id="purpose"
+                value={formData.purpose || ''}
+                onChange={(e) => handleFieldChange('purpose', e.target.value)}
+                placeholder="เช่น สำหรับผู้ป่วยทั่วไป"
+              />
+            </div>
+          )}
           
           <div className="grid gap-2">
             <Label htmlFor="format">รูปแบบหมายเลข</Label>
@@ -159,36 +163,40 @@ const QueueTypeDialog: React.FC<QueueTypeDialogProps> = ({
             </Select>
           </div>
           
-          <div className="grid gap-2">
-            <Label htmlFor="algorithm">อัลกอริทึม</Label>
-            <Select 
-              value={formData.algorithm} 
-              onValueChange={(value) => handleFieldChange('algorithm', value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {algorithmOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!isInspectionQueue && (
+            <div className="grid gap-2">
+              <Label htmlFor="algorithm">อัลกอริทึม</Label>
+              <Select 
+                value={formData.algorithm} 
+                onValueChange={(value) => handleFieldChange('algorithm', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {algorithmOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           
-          <div className="grid gap-2">
-            <Label htmlFor="priority">ลำดับความสำคัญ (1-10)</Label>
-            <Input
-              id="priority"
-              type="number"
-              min="1"
-              max="10"
-              value={formData.priority}
-              onChange={(e) => handleFieldChange('priority', parseInt(e.target.value) || 5)}
-            />
-          </div>
+          {!isInspectionQueue && (
+            <div className="grid gap-2">
+              <Label htmlFor="priority">ลำดับความสำคัญ (1-10)</Label>
+              <Input
+                id="priority"
+                type="number"
+                min="1"
+                max="10"
+                value={formData.priority}
+                onChange={(e) => handleFieldChange('priority', parseInt(e.target.value) || 5)}
+              />
+            </div>
+          )}
           
           <div className="flex items-center space-x-2">
             <Switch

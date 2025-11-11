@@ -143,18 +143,21 @@ export type Database = {
           created_at: string;
           id: string;
           patient_id: string | null;
+          image_count: number | null;
         };
         Insert: {
           check_note?: string | null;
           created_at?: string;
           id?: string;
           patient_id?: string | null;
+          image_count?: number | null;
         };
         Update: {
           check_note?: string | null;
           created_at?: string;
           id?: string;
           patient_id?: string | null;
+          image_count?: number | null;
         };
         Relationships: [
           {
@@ -162,6 +165,47 @@ export type Database = {
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      patient_check_images: {
+        Row: {
+          id: string;
+          patient_check_id: string;
+          image_path: string;
+          file_name: string | null;
+          file_size: number | null;
+          mime_type: string | null;
+          order_index: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          patient_check_id: string;
+          image_path: string;
+          file_name?: string | null;
+          file_size?: number | null;
+          mime_type?: string | null;
+          order_index?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          patient_check_id?: string;
+          image_path?: string;
+          file_name?: string | null;
+          file_size?: number | null;
+          mime_type?: string | null;
+          order_index?: number | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_check_images_patient_check_id_fkey";
+            columns: ["patient_check_id"];
+            isOneToOne: false;
+            referencedRelation: "patient_check";
             referencedColumns: ["id"];
           }
         ];

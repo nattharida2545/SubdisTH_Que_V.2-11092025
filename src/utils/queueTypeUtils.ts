@@ -28,3 +28,20 @@ export const getAllQueueTypes = async () => {
 
   return queueTypes.concat(queueTypesIns);
 };
+
+export const getPharmacyQueueTypes = async () => {
+  const { data: queueTypes } = await supabase
+    .from("queue_types")
+    .select("code, name")
+    .neq("purpose", "INS");
+
+  return queueTypes || [];
+};
+
+export const getInsQueueTypes = async () => {
+  const { data: queueTypesIns } = await supabase
+    .from("queue_ins_types")
+    .select("code, name");
+
+  return queueTypesIns || [];
+};

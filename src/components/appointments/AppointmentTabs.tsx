@@ -24,6 +24,7 @@ interface AppointmentTabsProps {
   filteredAppointments: Appointment[];
   isFiltered: boolean;
   onClearSearch: () => void;
+  onAppointmentDeleted?: () => void;
 }
 
 const AppointmentTabs: React.FC<AppointmentTabsProps> = ({
@@ -39,7 +40,8 @@ const AppointmentTabs: React.FC<AppointmentTabsProps> = ({
   getPatientName,
   filteredAppointments,
   isFiltered,
-  onClearSearch
+  onClearSearch,
+  onAppointmentDeleted
 }) => {
   return (
     <Tabs defaultValue="today" className="space-y-4">
@@ -69,6 +71,7 @@ const AppointmentTabs: React.FC<AppointmentTabsProps> = ({
         emptyMessage="ไม่มีนัดหมายในวันนี้"
         iconBgColor="bg-green-100"
         iconColor="text-green-600"
+        onAppointmentDeleted={onAppointmentDeleted}
       />
       
       <AppointmentTabContent 
@@ -78,6 +81,7 @@ const AppointmentTabs: React.FC<AppointmentTabsProps> = ({
         emptyMessage="ไม่มีนัดหมายในวันพรุ่งนี้"
         iconBgColor="bg-blue-100"
         iconColor="text-blue-600"
+        onAppointmentDeleted={onAppointmentDeleted}
       />
       
       <AppointmentTabContent 
@@ -87,6 +91,7 @@ const AppointmentTabs: React.FC<AppointmentTabsProps> = ({
         emptyMessage="ไม่มีนัดหมายในอนาคต"
         iconBgColor="bg-purple-100"
         iconColor="text-purple-600"
+        onAppointmentDeleted={onAppointmentDeleted}
       />
 
       {isFiltered && (
@@ -97,6 +102,7 @@ const AppointmentTabs: React.FC<AppointmentTabsProps> = ({
           emptyMessage="ไม่พบนัดหมายที่ตรงกับเงื่อนไขการค้นหา"
           iconBgColor="bg-amber-100"
           iconColor="text-amber-600"
+          onAppointmentDeleted={onAppointmentDeleted}
         />
       )}
     </Tabs>

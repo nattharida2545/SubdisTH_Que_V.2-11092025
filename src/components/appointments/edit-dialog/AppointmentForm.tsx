@@ -34,7 +34,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         
         <AppointmentDateTimeFields form={form} />
         <AppointmentDetailsFields form={form} />
-        <AppointmentStatusField form={form} />
+        {/* <AppointmentStatusField form={form} /> */}
         
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>

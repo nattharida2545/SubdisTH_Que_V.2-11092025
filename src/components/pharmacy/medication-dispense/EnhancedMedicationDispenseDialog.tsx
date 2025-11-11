@@ -33,6 +33,7 @@ const EnhancedMedicationDispenseDialog: React.FC<
     CurrentMedication[]
   >([]);
   const [checkNote, setCheckNote] = useState("");
+  const [checkNoteImages, setCheckNoteImages] = useState<File[]>([]);
   const [isDispensing, setIsDispensing] = useState(false);
 
   // Debug logging
@@ -161,14 +162,14 @@ const EnhancedMedicationDispenseDialog: React.FC<
 
     try {
       // Create patient_check record first if there's a check note
-      if (checkNote.trim()) {
+      if (checkNote.trim() || checkNoteImages.length > 0) {
         console.log("Creating patient_check record...");
         const { supabase } = await import("@/integrations/supabase/client");
         const { data: checkData, error: checkError } = await supabase
           .from("patient_check")
           .insert({
             patient_id: patientId,
-            check_note: checkNote.trim(),
+            check_note: checkNote.trim() || null,
           })
           .select("id")
           .single();
@@ -182,6 +183,67 @@ const EnhancedMedicationDispenseDialog: React.FC<
 
         patientCheckId = checkData.id;
         console.log("Created patient_check with ID:", patientCheckId);
+
+        // Upload images if any
+        if (checkNoteImages.length > 0) {
+          console.log("Uploading images...");
+          let uploadedCount = 0;
+          
+          for (let i = 0; i < checkNoteImages.length; i++) {
+            const file = checkNoteImages[i];
+            const fileName = `${patientId}/${patientCheckId}/${Date.now()}-${i}-${file.name}`;
+
+            try {
+              const { error: uploadError } = await supabase.storage
+                .from("patient_check_images")
+                .upload(fileName, file);
+
+              if (uploadError) {
+                console.error("Error uploading image:", uploadError);
+                toast.warning(`ไม่สามารถอัพโหลดรูปภาพ ${i + 1} ได้`);
+              } else {
+                console.log("Image uploaded successfully:", fileName);
+                
+                // Record image metadata in database
+                const { error: dbError } = await supabase
+                  .from("patient_check_images")
+                  .insert({
+                    patient_check_id: patientCheckId,
+                    image_path: fileName,
+                    file_name: file.name,
+                    file_size: file.size,
+                    mime_type: file.type,
+                    order_index: i,
+                  });
+
+                if (dbError) {
+                  console.error("Error saving image metadata:", dbError);
+                  toast.warning(`ไม่สามารถบันทึกข้อมูลรูปภาพ ${i + 1} ได้`);
+                } else {
+                  uploadedCount++;
+                  console.log("Image metadata saved successfully");
+                }
+              }
+            } catch (error) {
+              console.error("Error processing image:", error);
+              toast.warning(`เกิดข้อผิดพลาดในการประมวลผลรูปภาพ ${i + 1}`);
+            }
+          }
+
+          // Update image count in patient_check
+          if (uploadedCount > 0) {
+            const { error: updateError } = await supabase
+              .from("patient_check")
+              .update({ image_count: uploadedCount })
+              .eq("id", patientCheckId);
+
+            if (updateError) {
+              console.error("Error updating image count:", updateError);
+            } else {
+              console.log(`Updated image count: ${uploadedCount}`);
+            }
+          }
+        }
       }
 
       for (const currentMed of currentMedications) {
@@ -219,6 +281,7 @@ const EnhancedMedicationDispenseDialog: React.FC<
       if (successCount === currentMedications.length) {
         setCurrentMedications([]);
         setCheckNote("");
+        setCheckNoteImages([]);
         const message = checkNote.trim()
           ? `บันทึกการตรวจและจ่ายยาเรียบร้อย ${successCount} รายการ`
           : `จ่ายยาเรียบร้อย ${successCount} รายการ`;
@@ -277,6 +340,8 @@ const EnhancedMedicationDispenseDialog: React.FC<
         availableMedications={medications}
         checkNote={checkNote}
         onCheckNoteChange={setCheckNote}
+        checkNoteImages={checkNoteImages}
+        onCheckNoteImagesChange={setCheckNoteImages}
         onAddMedication={handleAddMedication}
         onUpdateMedication={handleUpdateMedication}
         onRemoveMedication={handleRemoveMedication}

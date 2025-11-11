@@ -28,7 +28,7 @@ const mapQueueInsTypesToConfig = (
 const loadFromLocalStorage = () => {
   try {
     if (typeof window === "undefined") return;
-    const raw = localStorage.getItem("queue_ins_types");
+    const raw = localStorage.getItem("queue_types");
     if (!raw) return;
     const parsed = JSON.parse(raw);
     queueInsTypeConfigs = mapQueueInsTypesToConfig(parsed);

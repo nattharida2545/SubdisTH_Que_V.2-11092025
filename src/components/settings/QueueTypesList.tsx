@@ -23,6 +23,7 @@ interface QueueTypesListProps {
   onCancelEdit: (index: number) => void;
   onDuplicateQueueType: (index: number) => void;
   onQueueTypeChange: (index: number, field: keyof QueueType, value: any) => void;
+  isInspectionQueue?: boolean;
 }
 
 const QueueTypesList: React.FC<QueueTypesListProps> = ({
@@ -36,78 +37,92 @@ const QueueTypesList: React.FC<QueueTypesListProps> = ({
   onCancelEdit,
   onDuplicateQueueType,
   onQueueTypeChange,
+  isInspectionQueue = false,
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedQueueType, setSelectedQueueType] = useState<QueueType | null>(null);
   const { queueTypes: dbQueueTypes, saveQueueType, deleteQueueType, fetchQueueTypes } = useQueueTypesData();
-  
+
   // Use database queue types as the primary source
   const queueTypes = dbQueueTypes.length > 0 ? dbQueueTypes : formQueueTypes;
-  
+
   const handleSaveQueueType = async (index: number) => {
     try {
       setIsProcessing(true);
       const queueType = queueTypes[index];
-      
+
       const success = await saveQueueType(queueType);
-      
+
       if (success) {
         onSaveQueueType(index);
-        toast.success(`บันทึกประเภทคิว ${queueType.name} เรียบร้อยแล้ว`);
+        toast.success(`บันทึกแผนก/ประเภทคิว ${queueType.name} เรียบร้อยแล้ว`);
       }
     } catch (error) {
       console.error("Error saving queue type:", error);
-      toast.error("ไม่สามารถบันทึกประเภทคิวได้");
+      toast.error("ไม่สามารถบันทึกแผนก/ประเภทคิวได้");
     } finally {
       setIsProcessing(false);
     }
   };
-  
-  const handleRemoveQueueType = async (index: number) => {
+
+  const handleRemoveQueueType = async (id: string) => {
     try {
-      const queueType = queueTypes[index];
+      const queueType = queueTypes.find(qt => qt.id === id);
       
-      if (queueType.id && queueType.id !== 'NEW') {
+      if (!queueType) {
+        toast.error("ไม่พบแผนก/ประเภทคิวที่ต้องการลบ");
+        return;
+      }
+
+      if (id && id !== 'NEW') {
         setIsProcessing(true);
-        
-        const success = await deleteQueueType(queueType.id);
-        
+
+        const isInspectionQueue = queueType.purpose === "INS";
+        const success = await deleteQueueType(id, isInspectionQueue);
+
         if (success) {
-          // onRemoveQueueType(index);
-          toast.success(`ลบประเภทคิว ${queueType.name} เรียบร้อยแล้ว`);
+          toast.success(`ลบแผนก/ประเภทคิว ${queueType.name} เรียบร้อยแล้ว`);
         }
       } else {
-        onRemoveQueueType(index);
+        const index = queueTypes.findIndex(qt => qt.id === id);
+        if (index !== -1) {
+          onRemoveQueueType(index);
+        }
       }
     } catch (error) {
       console.error("Error removing queue type:", error);
-      toast.error("ไม่สามารถลบประเภทคิวได้");
+      toast.error("ไม่สามารถลบแผนก/ประเภทคิวได้");
     } finally {
       setIsProcessing(false);
     }
   };
-  
-  const handleDuplicateQueueType = async (index: number) => {
+
+  const handleDuplicateQueueType = async (id: string) => {
     try {
-      const originalQueueType = queueTypes[index];
-      
+      const originalQueueType = queueTypes.find(qt => qt.id === id);
+
+      if (!originalQueueType) {
+        toast.error("ไม่พบแผนก/ประเภทคิวที่ต้องการคัดลอก");
+        return;
+      }
+
       const duplicatedQueueType = {
         ...originalQueueType,
         id: crypto.randomUUID(),
         code: `${originalQueueType.code}_COPY`,
         name: `${originalQueueType.name} (สำเนา)`
       };
-      
+
       const success = await saveQueueType(duplicatedQueueType);
-      
+
       if (success) {
         await fetchQueueTypes();
-        toast.success(`คัดลอกประเภทคิว ${originalQueueType.name} เรียบร้อยแล้ว`);
+        toast.success(`คัดลอกแผนก/ประเภทคิว ${originalQueueType.name} เรียบร้อยแล้ว`);
       }
     } catch (error) {
       console.error("Error duplicating queue type:", error);
-      toast.error("ไม่สามารถคัดลอกประเภทคิวได้");
+      toast.error("ไม่สามารถคัดลอกแผนก/ประเภทคิวได้");
     }
   };
 
@@ -125,15 +140,15 @@ const QueueTypesList: React.FC<QueueTypesListProps> = ({
     try {
       setIsProcessing(true);
       const success = await saveQueueType(queueType);
-      
+
       if (success) {
         await fetchQueueTypes();
-        toast.success(`บันทึกประเภทคิว ${queueType.name} เรียบร้อยแล้ว`);
+        toast.success(`บันทึกแผนก/ประเภทคิว ${queueType.name} เรียบร้อยแล้ว`);
         setDialogOpen(false);
       }
     } catch (error) {
       console.error("Error saving queue type:", error);
-      toast.error("ไม่สามารถบันทึกประเภทคิวได้");
+      toast.error("ไม่สามารถบันทึกแผนก/ประเภทคิวได้");
     } finally {
       setIsProcessing(false);
     }
@@ -143,14 +158,14 @@ const QueueTypesList: React.FC<QueueTypesListProps> = ({
     <>
       <Card>
         <CardHeader>
-          <CardTitle>ประเภทคิวรับยา</CardTitle>
+          <CardTitle>{isInspectionQueue ? 'แผนกคิวตรวจ' : 'ประเภทคิวรับยา'}</CardTitle>
           <CardDescription>
-            กำหนดค่าประเภทคิวสำหรับผู้ป่วยกลุ่มต่างๆ
+            {isInspectionQueue ? 'กำหนดค่าแผนกคิวสำหรับการตรวจ' : 'กำหนดค่าประเภทคิวสำหรับผู้ป่วยกลุ่มต่างๆ'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4">
-            {queueTypes.filter(f=>f.purpose !== "INS").map((queueType, index) => (
+            {queueTypes.filter(f => isInspectionQueue ? f.purpose === "INS" : f.purpose !== "INS").map((queueType, index) => (
               <QueueTypeItem key={queueType.id || index}>
                 {editingQueueType === queueType.id ? (
                   <QueueTypeEditForm
@@ -166,23 +181,23 @@ const QueueTypesList: React.FC<QueueTypesListProps> = ({
                   <QueueTypeDisplay
                     queueType={queueType}
                     onEditQueueType={() => handleEditQueueType(queueType)}
-                    onRemoveQueueType={() => handleRemoveQueueType(index)}
-                    onDuplicateQueueType={() => handleDuplicateQueueType(index)}
+                    onRemoveQueueType={() => handleRemoveQueueType(queueType.id)}
+                    onDuplicateQueueType={() => handleDuplicateQueueType(queueType.id)}
                     isProcessing={isProcessing}
                   />
                 )}
               </QueueTypeItem>
             ))}
           </div>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="w-full"
             onClick={handleAddNewQueueType}
             disabled={isProcessing}
           >
             <Plus className="h-4 w-4 mr-2" />
-            เพิ่มประเภทคิวใหม่
+            {isInspectionQueue ? 'เพิ่มแผนกคิวใหม่' : 'เพิ่มประเภทคิวใหม่'}
           </Button>
         </CardContent>
       </Card>
@@ -193,6 +208,7 @@ const QueueTypesList: React.FC<QueueTypesListProps> = ({
         queueType={selectedQueueType}
         formatOptions={formatOptions}
         onSave={handleDialogSave}
+        isInspectionQueue={isInspectionQueue}
       />
     </>
   );

@@ -96,20 +96,33 @@ export const useQueueTypesData = () => {
 
   const saveQueueType = async (queueType: QueueType) => {
     try {
-      // Then save to Supabase, using any to bypass type checking
+      // Determine which table to save to based on purpose field
+      const isInspectionQueue = queueType.purpose === "INS";
+      const tableName = isInspectionQueue ? "queue_ins_types" : "queue_types";
+
+      // Build the data object based on table type
+      const baseData = {
+        id: queueType.id,
+        code: queueType.code,
+        name: queueType.name,
+        prefix: queueType.prefix,
+        format: queueType.format,
+        enabled: queueType.enabled,
+      };
+
+      const dataToSave = isInspectionQueue
+        ? baseData
+        : {
+            ...baseData,
+            purpose: queueType.purpose || null,
+            algorithm: queueType.algorithm,
+            priority: queueType.priority,
+          };
+
+      // Save to appropriate Supabase table, using any to bypass type checking
       const { data, error } = await (supabase as any)
-        .from("queue_types")
-        .upsert({
-          id: queueType.id,
-          code: queueType.code,
-          name: queueType.name,
-          prefix: queueType.prefix,
-          purpose: queueType.purpose || null,
-          format: queueType.format,
-          enabled: queueType.enabled,
-          algorithm: queueType.algorithm,
-          priority: queueType.priority,
-        })
+        .from(tableName)
+        .upsert(dataToSave)
         .select();
 
       if (error) {
@@ -117,7 +130,7 @@ export const useQueueTypesData = () => {
         throw error;
       }
 
-      console.log("Queue type saved successfully:", data);
+      console.log(`Queue type saved successfully to ${tableName}:`, data);
 
       // Refresh queue types after successful save
       await fetchQueueTypes();
@@ -133,10 +146,14 @@ export const useQueueTypesData = () => {
     }
   };
 
-  const deleteQueueType = async (id: string) => {
+  const deleteQueueType = async (id: string, isInspectionQueue: boolean = false) => {
     try {
+      const tableName = isInspectionQueue ? "queue_ins_types" : "queue_types";
+
+      console.log("tableName", tableName);
+
       const { error } = await (supabase as any)
-        .from("queue_types")
+        .from(tableName)
         .delete()
         .eq("id", id);
 
@@ -145,7 +162,7 @@ export const useQueueTypesData = () => {
         throw error;
       }
 
-      console.log("Queue type deleted successfully");
+      console.log(`Queue type deleted successfully from ${tableName}`);
 
       // Refresh queue types after successful delete
       await fetchQueueTypes();

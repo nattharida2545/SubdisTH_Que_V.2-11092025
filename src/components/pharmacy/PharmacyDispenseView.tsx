@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
-import { formatThaiDate } from "@/utils/dateUtils";
+import { formatThaiDate, getTodayDate } from "@/utils/dateUtils";
 import { FileText, Pill, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -76,7 +76,7 @@ const PharmacyDispenseView: React.FC<PharmacyDispenseViewProps> = ({
     try {
       // Fetch queue to get appointment_id
       let appointmentId: string | null = null;
-      
+
       if (queueId) {
         const { data: queueData } = await supabase
           .from("queues")
@@ -117,7 +117,8 @@ const PharmacyDispenseView: React.FC<PharmacyDispenseViewProps> = ({
       }
 
       // Fetch today's medications for this patient
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayDate()
+      console.log("today", today);
       const { data: medicationsData, error: medError } = await supabase
         .from("patient_medications")
         .select(`
@@ -127,6 +128,8 @@ const PharmacyDispenseView: React.FC<PharmacyDispenseViewProps> = ({
         .eq("patient_id", patientId)
         .eq("start_date", today)
         .order("created_at", { ascending: false });
+
+      console.log("medicationsData", medicationsData);
 
       if (!medError && medicationsData) {
         setMedications(medicationsData);
@@ -175,7 +178,7 @@ const PharmacyDispenseView: React.FC<PharmacyDispenseViewProps> = ({
       }
 
       toast.success("จ่ายยาเรียบร้อยแล้ว");
-      
+
       // Refresh data
       setTimeout(() => {
         fetchAppointmentAndMedications();

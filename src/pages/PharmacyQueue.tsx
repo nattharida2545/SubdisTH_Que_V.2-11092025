@@ -37,7 +37,7 @@ const PharmacyQueue = () => {
         <div className="p-6 border-b bg-white">
           <PharmacyQueueHeader
             selectedServicePoint={selectedServicePoint}
-            servicePoints={servicePoints}
+            servicePoints={servicePoints.filter(sp => sp.enabled)}
             onServicePointChange={handleServicePointChange}
             onRefresh={handleManualRefresh}
           />

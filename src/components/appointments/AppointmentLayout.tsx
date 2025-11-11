@@ -20,6 +20,7 @@ interface AppointmentLayoutProps {
   isFiltered: boolean;
   onClearSearch: () => void;
   appointments: Appointment[];
+  onAppointmentDeleted?: () => void;
 }
 
 export const AppointmentLayout: React.FC<AppointmentLayoutProps> = ({
@@ -37,7 +38,8 @@ export const AppointmentLayout: React.FC<AppointmentLayoutProps> = ({
   filteredAppointments,
   isFiltered,
   onClearSearch,
-  appointments
+  appointments,
+  onAppointmentDeleted
 }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -57,6 +59,7 @@ export const AppointmentLayout: React.FC<AppointmentLayoutProps> = ({
           filteredAppointments={filteredAppointments}
           isFiltered={isFiltered}
           onClearSearch={onClearSearch}
+          onAppointmentDeleted={onAppointmentDeleted}
         />
       </div>
       <div>

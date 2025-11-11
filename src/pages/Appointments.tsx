@@ -73,6 +73,7 @@ const Appointments = () => {
         isFiltered={isFiltered}
         onClearSearch={handleClearSearch}
         appointments={appointments}
+        onAppointmentDeleted={handleAppointmentsRefresh}
       />
     </div>
   );

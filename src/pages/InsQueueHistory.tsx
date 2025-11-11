@@ -59,6 +59,18 @@ interface PatientCheck {
   patient_id: string;
   check_note: string | null;
   created_at: string;
+  image_count?: number;
+}
+
+interface PatientCheckImage {
+  id: string;
+  patient_check_id: string;
+  image_path: string;
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  order_index: number;
+  created_at: string;
 }
 
 interface MedicationDetails {
@@ -100,6 +112,7 @@ const InsQueueHistory = () => {
   const [selectedQueue, setSelectedQueue] = useState<QueueIns | null>(null);
   const [patientCheck, setPatientCheck] = useState<PatientCheck | null>(null);
   const [medications, setMedications] = useState<PatientMedication[]>([]);
+  const [checkImages, setCheckImages] = useState<PatientCheckImage[]>([]);
   const [loadingCheckData, setLoadingCheckData] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -332,10 +345,10 @@ const InsQueueHistory = () => {
           .from('patients')
           .select('id')
           .eq('ID_card', queue.ID_card)
-          .single();
+          .limit(1);
         
-        if (patientData) {
-          patientId = patientData.id;
+        if (patientData && patientData.length > 0) {
+          patientId = patientData[0].id;
         }
       }
 
@@ -344,10 +357,10 @@ const InsQueueHistory = () => {
           .from('patients')
           .select('id')
           .eq('phone', queue.phone_number)
-          .single();
+          .limit(1);
         
-        if (patientData) {
-          patientId = patientData.id;
+        if (patientData && patientData.length > 0) {
+          patientId = patientData[0].id;
         }
       }
 
@@ -358,15 +371,16 @@ const InsQueueHistory = () => {
       }
 
       // Fetch patient check for this date
-      const { data: checkData } = await supabase
+      const { data: checkDataArray } = await supabase
         .from('patient_check')
         .select('*')
         .eq('patient_id', patientId)
-        .gte('created_at', queue.queue_date + 'T00:00:00')
-        .lte('created_at', queue.queue_date + 'T23:59:59')
+        .gte('created_at', queue.created_at.toString().split('T')[0] + 'T00:00:00')
+        .lte('created_at', queue.created_at.toString().split('T')[0] + 'T23:59:59')
         .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
+
+      const checkData = checkDataArray && checkDataArray.length > 0 ? checkDataArray[0] : null;
 
       if (checkData) {
         setPatientCheck(checkData);
@@ -381,12 +395,38 @@ const InsQueueHistory = () => {
           .eq('patient_check_id', checkData.id)
           .order('created_at', { ascending: false });
 
+          console.log(checkData)
+
         if (medData) {
           setMedications(medData as PatientMedication[]);
+        }
+
+        // Fetch images for this check
+        const { data: imgData } = await supabase
+          .from('patient_check_images')
+          .select('*')
+          .eq('patient_check_id', checkData.id)
+          .order('order_index', { ascending: true });
+
+        if (imgData && imgData.length > 0) {
+          // Convert storage paths to public URLs
+          const imagesWithUrls = imgData.map((img) => {
+            const { data: urlData } = supabase.storage
+              .from('patient_check_images')
+              .getPublicUrl(img.image_path);
+            return {
+              ...img,
+              image_path: urlData.publicUrl,
+            };
+          });
+          setCheckImages(imagesWithUrls as PatientCheckImage[]);
+        } else {
+          setCheckImages([]);
         }
       } else {
         setPatientCheck(null);
         setMedications([]);
+        setCheckImages([]);
       }
     } catch (error) {
       console.error('Error fetching check data:', error);
@@ -937,18 +977,53 @@ const InsQueueHistory = () => {
                       <p>กำลังโหลดข้อมูล...</p>
                     </div>
                   ) : patientCheck ? (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500 mb-2">
-                        บันทึกเมื่อ:{" "}
-                        {format(
-                          new Date(patientCheck.created_at),
-                          "dd MMMM yyyy HH:mm น.",
-                          { locale: th }
-                        )}
-                      </p>
-                      <p className="whitespace-pre-wrap">
-                        {patientCheck.check_note || "ไม่มีบันทึกการตรวจ"}
-                      </p>
+                    <div className="space-y-4">
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-500 mb-2">
+                          บันทึกเมื่อ:{" "}
+                          {format(
+                            new Date(patientCheck.created_at),
+                            "dd MMMM yyyy HH:mm น.",
+                            { locale: th }
+                          )}
+                        </p>
+                        <p className="whitespace-pre-wrap">
+                          {patientCheck.check_note || "ไม่มีบันทึกการตรวจ"}
+                        </p>
+                      </div>
+                      
+                      {/* รูปภาพการตรวจ */}
+                      {patientCheck.image_count && patientCheck.image_count > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700">
+                            รูปภาพการตรวจ ({patientCheck.image_count} รูป)
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            {checkImages.map((img, index) => (
+                              <div key={img.id} className="relative group">
+                                <img
+                                  src={img.image_path}
+                                  alt={`Check image ${index + 1}`}
+                                  className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f0f0f0' width='100' height='100'/%3E%3Ctext x='50' y='50' font-size='14' fill='%23999' text-anchor='middle' dy='.3em'%3ENo image%3C/text%3E%3C/svg%3E";
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all duration-200 flex items-center justify-center">
+                                  <a
+                                    href={img.image_path}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="opacity-0 group-hover:opacity-100 bg-white text-blue-600 px-3 py-1 rounded text-xs font-medium transition-opacity"
+                                  >
+                                    ดูเต็มจอ
+                                  </a>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="text-center py-4 text-gray-500">

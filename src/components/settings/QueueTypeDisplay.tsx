@@ -102,7 +102,7 @@ const QueueTypeDisplay: React.FC<QueueTypeDisplayProps> = ({
           <span className="font-medium text-gray-700">รูปแบบ:</span> {getFormatLabel(ensureValidFormat(queueType.format))}
         </div>
         <div>
-          <span className="font-medium text-gray-700">จุดประสงค์:</span> {queueType.purpose}
+          {queueType.purpose != "INS" && <span className="font-medium text-gray-700">จุดประสงค์: {queueType.purpose}</span> }
         </div>
       </div>
 

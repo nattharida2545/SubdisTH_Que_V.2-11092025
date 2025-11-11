@@ -67,6 +67,27 @@ const QueueSettings: React.FC<QueueSettingsProps> = ({
           />
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+         
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <QueueTypesList 
+            queueTypes={queueTypes}
+            editingQueueType={editingQueueType}
+            formatOptions={formatOptions}
+            onAddQueueType={handleAddQueueType}
+            onRemoveQueueType={handleRemoveQueueType}
+            onEditQueueType={handleEditQueueType}
+            onSaveQueueType={handleSaveQueueType}
+            onCancelEdit={handleCancelEdit}
+            onDuplicateQueueType={handleDuplicateQueueType}
+            onQueueTypeChange={handleQueueTypeChange}
+            isInspectionQueue={true}
+          />
+        </CardContent>
+      </Card>
       
       {/* <Card>
         <CardHeader>

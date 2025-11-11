@@ -86,7 +86,7 @@ const ServicePointInsSetting: React.FC<{ className?: string }> = ({ className })
             </CardDescription> */}
           </div>
           <Button onClick={handleAdd} disabled={isAdding}>
-            <Plus className="h-4 w-4 mr-2" /> เพิ่มจุดบริการตรวจ
+            <Plus className="h-4 w-4 mr-2" /> เพิ่มจุดบริการ
           </Button>
         </div>
       </CardHeader>
